@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Frog Hop! 🐸</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pond: #2a7a5a;
+    --orange: #ff6f00;
+    --danger: #e53935;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a6b9a;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Nunito', sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+  #hud {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px 6px;
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .hud-box {
+    background: rgba(255,255,255,0.88);
+    border-radius: 16px;
+    padding: 6px 16px;
+    text-align: center;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.18);
+    min-width: 90px;
+  }
+  .hud-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #555;
+  }
+  .hud-value {
+    font-family: 'Fredoka One', cursive;
+    font-size: 28px;
+    color: var(--pond);
+    line-height: 1.1;
+  }
+  #timer-value { color: var(--orange); }
+  #timer-value.danger { color: var(--danger); animation: pulse 0.5s infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.18); } }
+  #title-wrap { text-align: center; }
+  #game-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 22px;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    letter-spacing: 1px;
+  }
+  #level-indicator {
+    font-family: 'Fredoka One', cursive;
+    font-size: 12px;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 1px;
+  }
+  #canvas-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    flex: 1;
+    min-height: 0;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: pointer;
+  }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(8,30,18,0.84);
+    backdrop-filter: blur(7px);
+    z-index: 20;
+  }
+  .overlay.hidden { display: none; }
+  .overlay-card {
+    background: linear-gradient(145deg, #e8f5e9, #f1f8e9);
+    border-radius: 28px;
+    padding: 28px 36px;
+    text-align: center;
+    box-shadow: 0 14px 45px rgba(0,0,0,0.4), 0 0 0 3px #4caf50;
+    max-width: 310px;
+    width: 88%;
+  }
+  .overlay-emoji { font-size: 60px; line-height: 1; margin-bottom: 10px; }
+  .overlay-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 32px;
+    color: var(--pond);
+    margin-bottom: 6px;
+  }
+  .overlay-sub {
+    font-size: 14px;
+    color: #555;
+    font-weight: 600;
+    margin-bottom: 18px;
+    line-height: 1.45;
+  }
+  .score-display {
+    font-family: 'Fredoka One', cursive;
+    font-size: 20px;
+    color: var(--orange);
+    background: rgba(255,255,255,0.7);
+    border-radius: 12px;
+    padding: 7px 18px;
+    margin-bottom: 20px;
+  }
+  .btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 20px;
+    color: white;
+    background: linear-gradient(180deg, #66bb6a, #388e3c);
+    border: none;
+    border-radius: 50px;
+    padding: 12px 32px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #1b5e20, 0 6px 12px rgba(0,0,0,0.2);
+    transition: transform 0.1s, box-shadow 0.1s;
+    width: 100%;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #1b5e20; }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="hud-box">
+    <div class="hud-label">Pads</div>
+    <div class="hud-value" id="score-value">0/10</div>
+  </div>
+  <div id="title-wrap">
+    <div id="game-title">🐸 Frog Hop!</div>
+    <div id="level-indicator">LEVEL 1</div>
+  </div>
+  <div class="hud-box">
+    <div class="hud-label">Time</div>
+    <div class="hud-value" id="timer-value">0s</div>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="overlay" id="start-screen">
+    <div class="overlay-card">
+      <div class="overlay-emoji">🐸</div>
+      <div class="overlay-title">Frog Hop!</div>
+      <div class="overlay-sub">The frog starts on the island. Tap the lily pads <strong>in order from 1 to 10</strong> to hop him across! Tap the wrong pad and — SPLASH! 💦</div>
+      <button class="btn" onclick="startGame()">Let's Hop! 🌿</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="splash-screen">
+    <div class="overlay-card">
+      <div class="overlay-emoji">💦</div>
+      <div class="overlay-title">Splash!</div>
+      <div class="overlay-sub" id="splash-msg">Wrong pad — the frog fell in!</div>
+      <div class="score-display" id="splash-score">Score: 0</div>
+      <button class="btn" onclick="restartGame()">Try Again 🐸</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="win-screen">
+    <div class="overlay-card">
+      <div class="overlay-emoji">🎉</div>
+      <div class="overlay-title">You Win!</div>
+      <div class="overlay-sub" id="win-msg">The frog made it across!</div>
+      <div class="score-display" id="win-score">Time: 0s</div>
+      <button class="btn" onclick="nextLevel()">Play Again! 🚀</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="timeout-screen">
+    <div class="overlay-card">
+      <div class="overlay-emoji">⏰</div>
+      <div class="overlay-title">Time's Up!</div>
+      <div class="overlay-sub">The frog ran out of time!</div>
+      <div class="score-display" id="timeout-score">Score: 0</div>
+      <button class="btn" onclick="restartGame()">Try Again 🐸</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const PAD_COUNT   = 10;
+// Jump speed: lower = slower. ~0.022 gives ~1.5s per jump at 60fps
+const JUMP_SPEED  = 0.022;
+
+let elapsed = 0;       // seconds, counts up
+let level = 1;
+let nextPad = 1;
+let missedJumps = 0;
+let timerInterval = null;
+let gameRunning = false;
+let pads = [];
+let island = null;
+let frog = {};
+let particles = [];
+let ripples = [];
+let floaties = [];   // floating numbers that rise on correct tap
+let glowRing = null;
+let waterOffset = 0;
+let animFrame;
+
+// ── Resize ───────────────────────────────────────────────
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight || (window.innerHeight - 110);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ── Pad generation ────────────────────────────────────────
+function generatePads(count) {
+  const W = canvas.width, H = canvas.height;
+  const padR   = Math.min(W, H) * 0.088;
+  const margin = padR + 22;
+  const minDist = padR * 2.7;
+  const result = [];
+  let attempts = 0;
+
+  while (result.length < count && attempts < 6000) {
+    attempts++;
+    const x = margin + Math.random() * (W - margin * 2);
+    const y = margin + Math.random() * (H - margin * 2);
+    // Keep away from island
+    if (island && Math.hypot(x - island.x, y - island.y) < minDist * 1.5) continue;
+    let ok = true;
+    for (const p of result) {
+      if (Math.hypot(p.x - x, p.y - y) < minDist) { ok = false; break; }
+    }
+    if (ok) result.push({
+      x, y,
+      num: result.length + 1,
+      radius: padR * (0.88 + Math.random() * 0.22),
+      wobble: Math.random() * Math.PI * 2,
+      notchAngle: Math.random() * Math.PI * 2
+    });
+  }
+  return result;
+}
+
+// ── Game flow ─────────────────────────────────────────────
+function startGame() {
+  hide('start-screen');
+  level = 1; score = 0;
+  beginLevel();
+}
+
+function beginLevel() {
+  const W = canvas.width, H = canvas.height;
+  const islandR = Math.min(W, H) * 0.09;
+  island = {
+    x: islandR + 18,
+    y: islandR + 18,
+    radius: islandR
+  };
+
+  pads = generatePads(PAD_COUNT);
+  nextPad   = 1;
+  elapsed   = 0;
+  missedJumps = 0;
+  gameRunning = true;
+  particles = [];
+  ripples   = [];
+  floaties  = [];
+  glowRing  = null;
+
+  frog = {
+    x: island.x, y: island.y,
+    startX: island.x, startY: island.y,
+    targetX: island.x, targetY: island.y,
+    angle: 0, scaleY: 1,
+    animating: false, splashing: false,
+    jumpT: 0, splashT: 0, onDone: null
+  };
+
+  updateHUD();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(tickTimer, 1000);
+  if (animFrame) cancelAnimationFrame(animFrame);
+  gameLoop();
+}
+
+function restartGame() {
+  hideAllOverlays();
+  level = 1;
+  beginLevel();
+}
+
+function nextLevel() {
+  hideAllOverlays();
+  level++;
+  beginLevel();
+}
+
+function hide(id)  { document.getElementById(id).classList.add('hidden'); }
+function show(id)  { document.getElementById(id).classList.remove('hidden'); }
+function hideAllOverlays() {
+  ['start-screen','win-screen'].forEach(hide);
+}
+
+function updateHUD() {
+  document.getElementById('level-indicator').textContent = 'LEVEL ' + level;
+  document.getElementById('score-value').textContent = (nextPad - 1) + '/10';
+  const tv = document.getElementById('timer-value');
+  tv.textContent = elapsed + 's';
+  tv.classList.remove('danger');
+}
+
+function tickTimer() {
+  elapsed++;
+  updateHUD();
+}
+
+// ── Input ─────────────────────────────────────────────────
+canvas.addEventListener('pointerdown', onTap);
+
+function onTap(e) {
+  if (!gameRunning || frog.animating || frog.splashing) return;
+  e.preventDefault();
+  const rect   = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top)  * scaleY;
+
+  for (const pad of pads) {
+    if (Math.hypot(mx - pad.x, my - pad.y) < pad.radius + 14) {
+      handlePadTap(pad);
+      return;
+    }
+  }
+}
+
+function handlePadTap(pad) {
+  if (pad.num === nextPad) {
+    // Correct
+    glowRing = { x: pad.x, y: pad.y, r: pad.radius, alpha: 0.95 };
+    spawnRipple(pad.x, pad.y, '#a5d6a7');
+    jumpFrogTo(pad.x, pad.y, () => {
+      floaties.push({ num: pad.num, x: pad.x, y: pad.y - pad.radius * 1.8, alpha: 1, vy: -3.5 });
+      glowRing = null;
+      nextPad++;
+      updateHUD();
+      if (nextPad > PAD_COUNT) {
+        clearInterval(timerInterval);
+        gameRunning = false;
+        setTimeout(() => {
+          const missedText = missedJumps === 0 ? 'Perfect — no missed jumps! 🏆' : `Missed jumps: ${missedJumps}`;
+          document.getElementById('win-msg').textContent = missedText;
+          document.getElementById('win-score').textContent = `Time: ${elapsed}s`;
+          show('win-screen');
+        }, 700);
+      }
+    });
+  } else {
+    // Wrong — frog swims back to island as penalty (visible, takes ~3s)
+    missedJumps++;
+    spawnRipple(pad.x, pad.y, '#ef9a9a');
+    jumpFrogTo(pad.x, pad.y, () => {
+      splashFrog(pad.x, pad.y);
+      // After brief sink, swim back to island
+      setTimeout(() => {
+        frog.splashing = false;
+        frog.splashT = 0;
+        swimFrogTo(island.x, island.y, () => {
+          nextPad = 1;
+          updateHUD();
+          gameRunning = true;
+        });
+      }, 800);
+    });
+  }
+}
+
+function jumpFrogTo(tx, ty, onDone) {
+  frog.startX = frog.x;
+  frog.startY = frog.y;
+  frog.targetX = tx;
+  frog.targetY = ty;
+  frog.animating = true;
+  frog.jumpT = 0;
+  frog.onDone = onDone;
+  frog.angle = Math.atan2(ty - frog.y, tx - frog.x);
+}
+
+// Slow swim back — no arc, frog bobs on the surface
+function swimFrogTo(tx, ty, onDone) {
+  frog.swimming = true;
+  frog.startX = frog.x;
+  frog.startY = frog.y;
+  frog.targetX = tx;
+  frog.targetY = ty;
+  frog.swimT = 0;
+  frog.swimDone = onDone;
+  // spawn a trail of ripples along the path
+  frog.swimRippleTimer = 0;
+}
+
+function splashFrog(tx, ty) {
+  frog.splashing = true;
+  frog.splashT = 0;
+  for (let i = 0; i < 30; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const spd = 1.5 + Math.random() * 5;
+    particles.push({
+      x: tx, y: ty,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd - 3.5,
+      life: 1,
+      color: Math.random() > 0.4 ? '#64b5f6' : '#b3e5fc',
+      r: 4 + Math.random() * 6
+    });
+  }
+  spawnRipple(tx, ty, '#64b5f6');
+  spawnRipple(tx, ty, '#81d4fa');
+  spawnRipple(tx, ty, '#4fc3f7');
+}
+
+function spawnRipple(x, y, color) {
+  ripples.push({ x, y, r: 6, alpha: 0.8, color });
+}
+
+// ── Game loop ─────────────────────────────────────────────
+function gameLoop() {
+  waterOffset += 0.006;
+  updateAnimations();
+  drawAll();
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+function updateAnimations() {
+  if (frog.animating) {
+    frog.jumpT = Math.min(1, frog.jumpT + JUMP_SPEED);
+    const t = frog.jumpT;
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+    frog.x = frog.startX + (frog.targetX - frog.startX) * ease;
+    frog.y = frog.startY + (frog.targetY - frog.startY) * ease
+             - Math.sin(t * Math.PI) * 85;
+    frog.scaleY = 1 + Math.sin(t * Math.PI) * 0.3;
+    if (frog.jumpT >= 1) {
+      frog.animating = false;
+      frog.scaleY = 1;
+      if (frog.onDone) frog.onDone();
+    }
+  }
+
+  if (frog.splashing) {
+    frog.splashT += 0.12;          // sink fast
+    frog.y += 4 + frog.splashT * 4;
+    if (frog.splashT > 0.8) {
+      frog.splashing = false;      // fully submerged — invisible
+    }
+  }
+
+  if (frog.swimming) {
+    frog.swimT = Math.min(1, frog.swimT + 0.008); // slow glide
+    const ease = frog.swimT < 0.5 ? 2*frog.swimT*frog.swimT : -1+(4-2*frog.swimT)*frog.swimT;
+    frog.x = frog.startX + (frog.targetX - frog.startX) * ease;
+    frog.y = frog.startY + (frog.targetY - frog.startY) * ease
+             + Math.sin(frog.swimT * Math.PI * 6) * 3; // gentle bob
+    // Periodic ripples while swimming
+    frog.swimRippleTimer = (frog.swimRippleTimer || 0) + 1;
+    if (frog.swimRippleTimer % 18 === 0) {
+      spawnRipple(frog.x, frog.y, '#90caf9');
+    }
+    if (frog.swimT >= 1) {
+      frog.swimming = false;
+      frog.x = frog.targetX;
+      frog.y = frog.targetY;
+      if (frog.swimDone) frog.swimDone();
+    }
+  }
+
+  if (glowRing) {
+    glowRing.alpha -= 0.006;
+    if (glowRing.alpha <= 0) glowRing = null;
+  }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.22; p.life -= 0.02;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i];
+    r.r += 1.9; r.alpha -= 0.015;
+    if (r.alpha <= 0) ripples.splice(i, 1);
+  }
+
+  for (let i = floaties.length - 1; i >= 0; i--) {
+    const f = floaties[i];
+    f.y  += f.vy;
+    f.vy *= 0.992;         // barely decelerate — keeps rising well
+    f.alpha -= 0.008;      // fade slowly so it travels a long way
+    if (f.alpha <= 0) floaties.splice(i, 1);
+  }
+
+  for (const p of pads) p.wobble += 0.018;
+}
+
+// ── Drawing ───────────────────────────────────────────────
+function drawAll() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  drawWater(W, H);
+  if (island) drawIsland();
+  drawRipples();
+  drawGlowRing();
+  drawPads();
+  drawParticles();
+  drawFloaties();
+  drawFrog();
+}
+
+function drawWater(W, H) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#1565c0');
+  g.addColorStop(1, '#0d3f6e');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.globalAlpha = 0.07;
+  for (let i = 0; i < 22; i++) {
+    const y = ((i * 47 + waterOffset * 55) % H);
+    ctx.strokeStyle = '#90caf9';
+    ctx.lineWidth = 1 + Math.sin(waterOffset * 2.5 + i) * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.bezierCurveTo(
+      W*0.25, y + Math.sin(waterOffset + i*0.7)*9,
+      W*0.75, y - Math.sin(waterOffset + i*0.7)*9,
+      W, y
+    );
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  for (let i = 0; i < 14; i++) {
+    const sx = (i*109 + Math.sin(waterOffset*0.6+i)*50 + W) % W;
+    const sy = (i*67  + Math.cos(waterOffset*0.4+i)*40 + H) % H;
+    const a  = (Math.sin(waterOffset*1.8+i*0.9)+1)/2 * 0.4;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#e3f2fd';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawIsland() {
+  const { x, y, radius: r } = island;
+
+  // Water shadow
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(x+5, y + r*0.4, r*1.05, r*0.36, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Dirt base
+  const dG = ctx.createRadialGradient(x-r*0.2, y-r*0.2, r*0.05, x, y, r);
+  dG.addColorStop(0, '#a1887f');
+  dG.addColorStop(0.5,'#795548');
+  dG.addColorStop(1, '#4e342e');
+  ctx.fillStyle = dG;
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r*0.68, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Grass top
+  const gG = ctx.createRadialGradient(x-r*0.25, y-r*0.3, r*0.05, x, y, r*0.92);
+  gG.addColorStop(0, '#81c784');
+  gG.addColorStop(0.5,'#4caf50');
+  gG.addColorStop(1, '#2e7d32');
+  ctx.fillStyle = gG;
+  ctx.beginPath();
+  ctx.ellipse(x, y-r*0.1, r*0.88, r*0.5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Tufts
+  ctx.fillStyle = '#66bb6a';
+  for (let i = 0; i < 7; i++) {
+    const a = (i/7)*Math.PI*2;
+    const gx = x + Math.cos(a)*r*0.52;
+    const gy = y - r*0.1 + Math.sin(a)*r*0.28;
+    ctx.beginPath();
+    ctx.ellipse(gx, gy, 5, 10, a, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Label
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = `bold ${Math.round(r*0.3)}px Fredoka One, cursive`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 5;
+  ctx.fillText('START', x, y - r*0.06);
+  ctx.restore();
+}
+
+function drawGlowRing() {
+  if (!glowRing) return;
+  const { x, y, r, alpha } = glowRing;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#ffee58';
+  ctx.lineWidth = 5;
+  ctx.shadowColor = '#ffe57f';
+  ctx.shadowBlur = 16;
+  ctx.beginPath();
+  ctx.ellipse(x, y, r+9, (r+9)*0.64, 0, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawRipples() {
+  for (const r of ripples) {
+    ctx.save();
+    ctx.globalAlpha = r.alpha;
+    ctx.strokeStyle = r.color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(r.x, r.y, r.r, r.r*0.4, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawPads() {
+  for (const pad of pads) {
+    const done = pad.num < nextPad;
+    const r  = pad.radius;
+    const wx = Math.sin(pad.wobble) * 1.8;
+    const wy = Math.cos(pad.wobble * 0.65) * 1.8;
+    const px = pad.x + wx, py = pad.y + wy;
+
+    // Shadow
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(px+4, py+8, r*0.97, r*0.33, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // Pad body
+    ctx.save();
+    const padG = ctx.createRadialGradient(px-r*0.3, py-r*0.28, r*0.04, px, py, r);
+    padG.addColorStop(0,   done ? '#388e3c' : '#7ecb52');
+    padG.addColorStop(0.55, done ? '#2e7d32' : '#4caf50');
+    padG.addColorStop(1,   done ? '#1b5e20' : '#2e7d32');
+    ctx.fillStyle = padG;
+    ctx.beginPath();
+    ctx.ellipse(px, py, r, r*0.63, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Veins
+    ctx.strokeStyle = done ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px, py - r*0.55);
+    ctx.lineTo(px, py + r*0.55);
+    ctx.moveTo(px - r*0.88, py);
+    ctx.lineTo(px + r*0.88, py);
+    for (let a = 1; a <= 3; a++) {
+      const ang = (a/4)*Math.PI;
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + Math.cos(ang)*r*0.88, py + Math.sin(ang)*r*0.56);
+      ctx.moveTo(px, py);
+      ctx.lineTo(px - Math.cos(ang)*r*0.88, py + Math.sin(ang)*r*0.56);
+    }
+    ctx.stroke();
+
+    // Notch cutout
+    ctx.fillStyle = '#1565c0';
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.arc(px, py, r*0.27, pad.notchAngle-0.38, pad.notchAngle+0.38);
+    ctx.closePath();
+    ctx.fill();
+
+    // Rim
+    ctx.strokeStyle = done ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.16)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(px, py, r, r*0.63, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Number
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = done ? 'rgba(255,255,255,0.3)' : 'white';
+    ctx.font = `bold ${Math.round(r*1.14)}px Fredoka One, cursive`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pad.num, px, py);
+    ctx.restore();
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawFloaties() {
+  for (const f of floaties) {
+    ctx.save();
+    ctx.globalAlpha = f.alpha;
+    ctx.font = `bold ${Math.min(canvas.width, canvas.height) * 0.1}px Fredoka One, cursive`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Outline for legibility
+    ctx.strokeStyle = 'rgba(30,100,30,0.7)';
+    ctx.lineWidth = 6;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(f.num, f.x, f.y);
+    ctx.fillStyle = '#ffee58';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(f.num, f.x, f.y);
+    ctx.restore();
+  }
+}
+
+function drawFrog() {
+  if (!frog || !frog.x) return;
+  // Hide entirely while splashing (submerged)
+  if (frog.splashing) return;
+
+  const { x, y, scaleY = 1 } = frog;
+
+  ctx.save();
+  // While swimming, show frog semi-transparent at water level
+  if (frog.swimming) ctx.globalAlpha = 0.65;
+  ctx.translate(x, y);
+  ctx.scale(1, scaleY);
+
+  // Shift the whole frog up so it sits on top of the pad rather than centered on it
+  ctx.translate(0, -Math.min(canvas.width, canvas.height) * 0.055);
+
+  // Size relative to canvas — big frog
+  const S = Math.min(canvas.width, canvas.height) * 0.09;
+
+  // Hind legs
+  ctx.fillStyle = '#388e3c';
+  ctx.beginPath();
+  ctx.ellipse(-S*0.74, S*0.44, S*0.40, S*0.22, Math.PI*0.35, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse( S*0.74, S*0.44, S*0.40, S*0.22, -Math.PI*0.35, 0, Math.PI*2);
+  ctx.fill();
+
+  // Hind feet
+  ctx.fillStyle = '#2e7d32';
+  ctx.beginPath();
+  ctx.ellipse(-S*1.05, S*0.55, S*0.30, S*0.14, Math.PI*0.2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse( S*1.05, S*0.55, S*0.30, S*0.14, -Math.PI*0.2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Body
+  const bG = ctx.createRadialGradient(-S*0.2,-S*0.25,S*0.05, 0,0, S*0.95);
+  bG.addColorStop(0, '#a5d6a7');
+  bG.addColorStop(0.45,'#4caf50');
+  bG.addColorStop(1, '#1b5e20');
+  ctx.fillStyle = bG;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, S*0.92, S*0.84, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Belly
+  ctx.fillStyle = '#dcedc8';
+  ctx.beginPath();
+  ctx.ellipse(0, S*0.18, S*0.54, S*0.54, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Front arms
+  ctx.fillStyle = '#43a047';
+  ctx.beginPath();
+  ctx.ellipse(-S*0.64, -S*0.22, S*0.30, S*0.17, -Math.PI*0.45, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse( S*0.64, -S*0.22, S*0.30, S*0.17,  Math.PI*0.45, 0, Math.PI*2);
+  ctx.fill();
+
+  // Eyes
+  for (const ex of [-S*0.38, S*0.38]) {
+    ctx.fillStyle = '#2e7d32';
+    ctx.beginPath();
+    ctx.arc(ex, -S*0.70, S*0.31, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#f9fbe7';
+    ctx.beginPath();
+    ctx.arc(ex, -S*0.70, S*0.22, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#1a237e';
+    ctx.beginPath();
+    ctx.arc(ex+S*0.04, -S*0.70, S*0.13, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(ex+S*0.09, -S*0.75, S*0.055, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Nostrils
+  ctx.fillStyle = '#1b5e20';
+  ctx.beginPath();
+  ctx.arc(-S*0.14, -S*0.46, S*0.055, 0, Math.PI*2);
+  ctx.arc( S*0.14, -S*0.46, S*0.055, 0, Math.PI*2);
+  ctx.fill();
+
+  // Smile
+  ctx.strokeStyle = '#1b5e20';
+  ctx.lineWidth = S*0.07;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, -S*0.22, S*0.33, 0.25, Math.PI-0.25);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Init
+resizeCanvas();
+</script>
+</body>
+</html>
