@@ -730,7 +730,7 @@ function drawPads() {
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur = 5;
     ctx.fillStyle = done ? 'rgba(255,255,255,0.3)' : 'white';
-    ctx.font = `bold ${Math.round(r*1.14)}px Fredoka One, cursive`;
+    ctx.font = `bold ${Math.round(r * (pad.num >= 10 ? 0.72 : 1.14))}px Fredoka One, cursive`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(pad.num, px, py);
